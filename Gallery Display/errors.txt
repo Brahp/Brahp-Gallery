@@ -1,0 +1,10 @@
+﻿I'm sorry, but errors were detected in your script. Please correct the
+errors listed below, and try again.
+
+
+File "game/screens.rpy", line 565: expected a keyword argument, colon, or end of line.
+    label {size=+5}"Now a message from our sponser;{/size}"
+                   ^
+
+Ren'Py Version: Ren'Py 8.2.3.24061702
+Tue Oct 29 17:15:15 2024
