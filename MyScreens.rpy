@@ -6,52 +6,90 @@ init python:
     scale = 0.5
     currentmenu = "main_menu"
     previousmenu = "main_menu"
+    currentGalleryPage = 1  
+    brahpgalleryPage = 1  
+    latestartPage = 1
+    featuredprojectPage = 1
     imageCurrentIndex = 0
     imageCurrentImage = None
+    
 
-    # Initialize gallery image lists
     brahpgalleryImageList = sorted([f for f in renpy.list_files(common=False) if f.startswith("images/gallery/") and "galleryimage" in f and f.endswith(".png")])
     latestartImageList = sorted([f for f in renpy.list_files(common=False) if f.startswith("images/latestart/") and "galleryimage" in f and f.endswith(".png")])
     featuredprojectImageList = sorted([f for f in renpy.list_files(common=False) if f.startswith("images/featuredproject/") and "galleryimage" in f and f.endswith(".png")])
 
-    # Track page and image lists for each gallery separately
-    gallery_data = {
-        "brahpgallery": {"imageList": brahpgalleryImageList, "page": 1},
-        "latestart": {"imageList": latestartImageList, "page": 1},
-        "featuredproject": {"imageList": featuredprojectImageList, "page": 1},
-    }
 
-    def update_image_list(gallery_name, gridCol, gridRow):
+    imageList = brahpgalleryImageList
+
+    def update_image_list(new_list, gridCol, gridRow):
         global imageList, galleryTotalPages, galleryslotsPerPage
-        gallery = gallery_data[gallery_name]
-        imageList = gallery["imageList"]
+        imageList = new_list
         galleryslotsPerPage = gridCol * gridRow
         galleryTotalPages = (len(imageList) + galleryslotsPerPage - 1) // galleryslotsPerPage
 
-    def change_image(delta):
+    def change_image(delta, currentImageList):
         global imageCurrentIndex, imageCurrentImage, currentGalleryPage
-        imageCurrentIndex = (imageCurrentIndex + delta) % len(imageList)
-        imageCurrentImage = imageList[imageCurrentIndex]
+        if currentImageList:
+            imageCurrentIndex = (imageCurrentIndex + delta) % len(currentImageList)
+            imageCurrentImage = currentImageList[imageCurrentIndex]
+            
+            
+            currentGalleryPage = (imageCurrentIndex // galleryslotsPerPage) + 1
 
     def showmenu(menu_name):
-        global currentmenu, previousmenu
-        previousmenu = currentmenu
-        currentmenu = menu_name
-        renpy.show_screen(menu_name)
+        global currentmenu, previousmenu, imageCurrentIndex, imageCurrentImage
 
+ 
+        if currentmenu != menu_name:
+            previousmenu = currentmenu
+
+
+        currentmenu = menu_name
+
+        if menu_name == "brahpgallery":
+            update_image_list(brahpgalleryImageList, 3, 2)
+            imageCurrentIndex = 0 
+        elif menu_name == "latest_art":
+            update_image_list(latestartImageList, 3, 1)
+            imageCurrentIndex = 0
+        elif menu_name == "featured_project":
+            update_image_list(featuredprojectImageList, 3, 1)
+            imageCurrentIndex = 0
+
+        renpy.show_screen(menu_name)
 
     config.renpy.ShowMenu = showmenu
 
 
+screen navigation():
+    vbox:
+        style_prefix "navigation"
+        xpos gui.navigation_xpos
+        yalign 0.5
+        spacing gui.navigation_spacing
+
+        if main_menu:
+            textbutton _("Brahps Gallery") action [SetVariable("currentGalleryPage", brahpgalleryPage), Function(showmenu, "brahpgallery")]:
+                selected (currentmenu == "brahpgallery")
+            textbutton _("Home") action Function(showmenu, "home"):
+                selected (currentmenu == "home")
+
+        textbutton _("About") action Function(showmenu, "about"):
+            selected (currentmenu == "about")
+        
+        if renpy.variant("pc"):
+            textbutton _("Quit") action Quit(confirm=not main_menu)
 
 
-
-
-screen gallery_slots(gallery_name, gridCol, gridRow):
+screen brahpgallery():
     tag menu
-    $ gallery = gallery_data[gallery_name]
-    $ imageList = gallery["imageList"]
-    $ currentGalleryPage = gallery["page"]
+    use game_menu(_("Brahp Gallery")):
+        $ update_image_list(brahpgalleryImageList, 3, 2)
+        use gallery_slots(imageList, 3, 2)
+
+
+screen gallery_slots(imageList, gridCol, gridRow):
+    tag menu
     $ galleryslotsPerPage = gridCol * gridRow
     $ galleryTotalPages = (len(imageList) + galleryslotsPerPage - 1) // galleryslotsPerPage
 
@@ -70,8 +108,10 @@ screen gallery_slots(gallery_name, gridCol, gridRow):
                         action [
                             SetVariable("imageCurrentImage", imageName),
                             SetVariable("imageCurrentIndex", slot),
-                            Function(showmenu, "show_full_image")
+                            SetVariable("currentImageList", imageList),  
+                            Function(showmenu, "show_full_image")  
                         ]
+
                         has vbox
 
                         frame:
@@ -86,11 +126,10 @@ screen gallery_slots(gallery_name, gridCol, gridRow):
             hbox:
                 xalign 0.5
                 spacing gui.page_spacing
-                textbutton _("<") action SetVariable("gallery_data[gallery_name]['page']", max(currentGalleryPage - 1, 1))
+                textbutton _("<") action SetVariable("currentGalleryPage", max(currentGalleryPage - 1, 1))
                 for page in range(1, galleryTotalPages + 1):
-                    textbutton str(page) action SetVariable("gallery_data[gallery_name]['page']", page)
-                textbutton _(">") action SetVariable("gallery_data[gallery_name]['page']", min(currentGalleryPage + 1, galleryTotalPages))
-
+                    textbutton str(page) action SetVariable("currentGalleryPage", page)
+                textbutton _(">") action SetVariable("currentGalleryPage", min(currentGalleryPage + 1, galleryTotalPages))
 
 
 screen PageGallerySlot(galleryCurrentPage, imageList, gridCol, gridRow):
@@ -113,8 +152,10 @@ screen PageGallerySlot(galleryCurrentPage, imageList, gridCol, gridRow):
                     action [
                         SetVariable("imageCurrentImage", imageName),
                         SetVariable("imageCurrentIndex", slot),
-                        Function(showmenu, "show_full_image")
+                        SetVariable("currentImageList", imageList), 
+                        Function(showmenu, "show_full_image")  
                     ]
+
                     has vbox
                     frame:
                         xsize gui.slot_button_width - 20
@@ -134,7 +175,6 @@ screen show_full_image():
         xalign 0.5
         yalign 0.5
 
-      
         $ width, height = renpy.image_size(imageCurrentImage)
 
         frame:
@@ -149,86 +189,50 @@ screen show_full_image():
                     Image(imageCurrentImage), size=(width * scale, height * scale)
                 ) xalign 0.5 yalign 0.5
 
-       
             hbox:
                 xalign 0.5
                 yalign 1.0
                 spacing 1000 
 
-            
-                textbutton "<" action Function(change_image, -1): 
+                textbutton "<" action Function(change_image, -1, currentImageList=currentImageList): 
                     xalign 0  
 
-            
-                textbutton ">" action Function(change_image, 1):
+                textbutton ">" action Function(change_image, 1, currentImageList=currentImageList):
                     xalign 1  
 
-
     textbutton _("Return"): 
-            style "return_button"
-            action [SetVariable("imageCurrentImage", None), Function(showmenu, previousmenu)]
+        style "return_button"
+        action [
+            SetVariable("imageCurrentImage", None), 
+            SetVariable("currentmenu", previousmenu), 
+            Show(previousmenu)
+        ]
 
-
-
-    key "K_LEFT" action Function(change_image, -1)
-    key "K_RIGHT" action Function(change_image, 1)
-
-
-
-
+    key "K_LEFT" action Function(change_image, -1, currentImageList=currentImageList)
+    key "K_RIGHT" action Function(change_image, 1, currentImageList=currentImageList)
 
 
 
 
+label homescreen:
 
-screen navigation():
-    vbox:
-        style_prefix "navigation"
-        xpos gui.navigation_xpos
-        yalign 0.5
-        spacing gui.navigation_spacing
+    screen home():
+        tag menu
 
-        if main_menu:
-            textbutton _("Brahps Gallery") action [SetVariable("currentGalleryPage", gallery_data["brahpgallery"]["page"]), Function(showmenu, "brahpgallery")]:
-                selected (currentmenu == "brahpgallery")
-            textbutton _("Home") action Function(showmenu, "home"):
-                selected (currentmenu == "home")
+        use game_menu(_("Home"), scroll="viewport"):
+            style_prefix "about"
 
-        textbutton _("About") action Function(showmenu, "about"):
-            selected (currentmenu == "about")
-        
-        if renpy.variant("pc"):
-            textbutton _("Quit") action Quit(confirm=not main_menu)
+            vbox:
+                label "Latest Art"
+                use latest_art()
 
-screen brahpgallery():
-    tag menu
-    use game_menu(_("Brahp Gallery")):
-        $ update_image_list("brahpgallery", 3, 2)
-        use gallery_slots("brahpgallery", 3, 2)
-
-screen home():
-    tag menu
-
-    use game_menu(_("Home"), scroll="viewport"):
-        style_prefix "about"
-
-        vbox:
-            label "Latest Art"
-            use latest_art()
-
-            label "Featured Projects"
-            use featured_project()
+                label "Featured Projects"
+                use featured_project()
 
 
-screen latest_art():
-    tag menu
-    use game_menu(_("Latest Art")):
-        $ update_image_list("latestart", 3, 1)
-        use gallery_slots("latestart", 3, 1)
+    screen latest_art():
+        tag menu
+        use PageGallerySlot(latestartPage, latestartImageList, 3, 1)
 
-
-screen featured_project():
-    tag menu
-    use game_menu(_("Featured Projects")):
-        $ update_image_list("featuredproject", 3, 1)
-        use gallery_slots("featuredproject", 3, 1)
+    screen featured_project():
+        use PageGallerySlot(featuredprojectPage, featuredprojectImageList, 3, 1)
